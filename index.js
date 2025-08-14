@@ -22,19 +22,16 @@ class App {
 
   async __loadData() {
     const baseCoin = 'BUSD'
-
     const response = await axios.get(
       'https://api2.binance.com/api/v3/ticker/24hr'
     )
 
     this.__coins = response.data
-
       .filter(
         (coin) =>
           coin.lastPrice > 0 &&
           (coin.symbol.startsWith(baseCoin) || coin.symbol.endsWith(baseCoin))
       )
-
       .map((coin) => ({
         symbol: coin.symbol.replace(baseCoin, '').trim().toUpperCase(),
 
@@ -42,17 +39,13 @@ class App {
           ? 1 / coin.lastPrice
           : Number(coin.lastPrice),
       }))
-
       .concat([
         {
           symbol: baseCoin,
-
           price: 1,
-
           baseCoin: true,
         },
       ])
-
       .sort((a, b) => a.symbol.localeCompare(b.symbol))
   }
 
@@ -65,7 +58,7 @@ class App {
     this.__express.get('/api/coins', async (req, res) => {
       res.json(this.__availableSymbols)
     })
-    this.__express.get('/api/convert/:from/:amount?/:to?', async (req, res) => {
+    this.__express.get('/api/convert/:from/:amount/:to', async (req, res) => {
       const from = String(req.params.from).toUpperCase().trim()
 
       const to = String(
