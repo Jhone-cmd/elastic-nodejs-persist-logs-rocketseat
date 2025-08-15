@@ -99,4 +99,11 @@ class App {
   }
 }
 
-new App().start()
+try {
+  console.info('Aplicação Iniciada')
+  new App().start()
+} catch (error) {
+  console.error(
+    `Ocorreu um erro não tratado na aplicação. Ela será finalizada. ${error?.message ?? error}`
+  )
+}
