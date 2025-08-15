@@ -14,6 +14,7 @@ class App {
     this.__coins = []
     this.__middleware()
     this.__routes()
+    this.__loadData()
   }
 
   get __availableSymbols() {
@@ -23,11 +24,16 @@ class App {
   async __loadData() {
     const url = 'https://api2.binance.com/api/v3/ticker/24hr'
     const baseCoin = 'BUSD'
-    console.log(`Carregando dados da API da Binance em: ${url}`)
+    console.log(`Carregando dados da API da Binance em: ${url}`, { url })
     try {
       const response = await axios.get(url)
       console.debug(
-        `Recebido dados da API da Binance. Status ${response.status}, ${response.statusText}. Comprimento dos dados: ${JSON.stringify(response.data).length}`
+        `Recebido dados da API da Binance. Status ${response.status}, ${response.statusText}. Comprimento dos dados: ${JSON.stringify(response.data).length}`,
+        {
+          statusCode: response.status,
+          statusText: response.statusText,
+          data: JSON.stringify(response.data),
+        }
       )
       this.__coins = response.data
         .filter(
@@ -41,39 +47,61 @@ class App {
             ? 1 / coin.lastPrice
             : Number(coin.lastPrice),
         }))
-        .concat([{ symbol: baseCoin, price: 1, baseCoin: true }])
+        .concat([
+          {
+            symbol: baseCoin,
+            price: 1,
+            baseCoin: true,
+          },
+        ])
         .sort((a, b) => a.symbol.localeCompare(b.symbol))
-
       console.debug(
-        `A lista de moedas foi atualizada com ${this.__coins.length} itens: ${this.__coins.map((coin) => coin.symbol).join(', ')}`
+        `A lista de moedas foi atualizada com ${this.__coins.length} itens: ${this.__coins.map((coin) => coin.symbol).join(', ')}`,
+        {
+          coins: this.__coins,
+          coinsLength: this.__coins.length,
+          baseCoin,
+        }
       )
     } catch (error) {
       console.error(
-        `Ocorreu um erro ao consumir a API da Binance. ${error?.message ?? error}`
+        `Ocorreu um erro ao consumir a API da Binance. ${error?.message ?? error}`,
+        { error }
       )
     }
   }
 
   __middleware() {
+    this.__express.use(express.json())
+
     const root = path.join(__dirname, 'root')
-
-    console.log(`O serviço HTTP está usando o diretório "${root}" como raiz.`)
-
+    console.log(`O serviço HTTP está usando o diretório "${root}" como raiz.`, {
+      root,
+    })
     this.__express.use(express.static(root))
 
     this.__express.use((req, res, next) => {
       res.on('finish', () => {
         if (res.statusCode >= 400) {
           console.warn(
-            `Resposta HTTP ${res.statusCode} para ${req.method} ${req.url}`
+            `Resposta HTTP ${res.statusCode} para ${req.method} ${req.url}`,
+            {
+              statusCode: res.statusCode,
+              method: req.method,
+              url: req.url,
+            }
           )
         } else {
           console.debug(
-            `Resposta HTTP ${res.statusCode} para ${req.method} ${req.url}`
+            `Resposta HTTP ${res.statusCode} para ${req.method} ${req.url}`,
+            {
+              statusCode: res.statusCode,
+              method: req.method,
+              url: req.url,
+            }
           )
         }
       })
-
       next()
     })
   }
@@ -82,23 +110,27 @@ class App {
     this.__express.post('/api/log/:key', async (req, res) => {
       switch (req.params.key) {
         case 'frontpage':
-          console.log('Página inicial carregada pelo usuário.')
-
+          console.log('Página inicial carregada pelo usuário.', {
+            action: 'log',
+            key: req.params.key,
+          })
           break
-
         case 'ping':
-          console.log('O usuário pingou o servidor.')
-
+          console.log('O usuário pingou o servidor.', {
+            action: 'log',
+            key: req.params.key,
+          })
           break
-
         default:
           console.warn(
-            `Recebido um evento de log desconhecido: ${req.params.key}`
+            `Recebido um evento de log desconhecido: ${req.params.key}`,
+            {
+              action: 'log',
+              key: req.params.key,
+            }
           )
-
           break
       }
-
       res.status(200).send()
     })
 
@@ -106,51 +138,53 @@ class App {
       res.json(this.__availableSymbols)
     })
 
-    this.__express.get('/api/convert/:from/:amount?/:to?', async (req, res) => {
+    this.__express.get('/api/convert/:from/:ammount/:to', async (req, res) => {
       const from = String(req.params.from).toUpperCase().trim()
-
       const to = String(
         req.params.to ?? this.__coins.find((coin) => coin.baseCoin).symbol
       )
         .toUpperCase()
         .trim()
-
-      const amount = Number(req.params.amount ?? 1)
+      const ammount = Number(req.params.ammount ?? 1)
 
       if (this.__availableSymbols.length === 0) {
         console.warn(
           'Conversão não pode ser realizada pois a lista de moedas está vazia.'
         )
-
         res.status(500).json({ error: 'No coins available' })
-      } else if (Number.isNaN(amount)) {
+      } else if (Number.isNaN(ammount)) {
         console.warn(
-          `Conversão não pode ser realizada pois o valor da moeda é inválido: ${req.params.amount}`
+          `Conversão não pode ser realizada pois o valor da moeda é inválido: ${req.params.ammount}`,
+          {
+            ammount: req.params.ammount,
+          }
         )
-
-        res.status(400).json({ error: 'Amount must be a number' })
+        res.status(400).json({ error: 'Ammount must be a number' })
       } else if (
-        this.__availableSymbols.includes(from) &&
+        this.__availableSymbols.includes(from) ||
         this.__availableSymbols.includes(to)
       ) {
         const fromPrice = this.__coins.find(
           (coin) => coin.symbol === from
         ).price
-
         const toPrice = this.__coins.find((coin) => coin.symbol === to).price
-
-        res.json({ result: ((amount * fromPrice) / toPrice).toFixed(8) })
-
-        const result = ((amount * fromPrice) / toPrice).toFixed(8)
-
-        console.log(`Convertendo ${amount} ${from} para ${to} = ${result}`)
-
+        const result = ((ammount * fromPrice) / toPrice).toFixed(8)
+        console.log(`Convertendo ${ammount} ${from} para ${to} = ${result}`, {
+          ammount,
+          from,
+          to,
+          result,
+          action: 'convert',
+        })
         res.json({ result })
       } else {
         console.warn(
-          `Conversão não pode ser realizada pois a moeda ${from} ou ${to} não está disponível.`
+          `Conversão não pode ser realizada pois a moeda ${from} ou ${to} não está disponível.`,
+          {
+            from,
+            to,
+          }
         )
-
         res.status(400).json({
           error: `Symbol must be one of: ${this.__availableSymbols.join(', ')}`,
         })
@@ -160,18 +194,19 @@ class App {
 
   start() {
     this.__express.listen(this.__port, () => {
-      console.log(`Server listening on port ${this.__port}`)
-
-      console.log(`O serviço HTTP foi ligado na porta ${this.__port}.`)
+      console.log(`O serviço HTTP foi ligado na porta ${this.__port}.`, {
+        port: this.__port,
+      })
     })
   }
 }
 
 try {
-  console.info('Aplicação Iniciada')
+  console.info('Aplicação iniciada.')
   new App().start()
 } catch (error) {
   console.error(
-    `Ocorreu um erro não tratado durante a execução da aplicação. A aplicação será finalizada. ${error?.message ?? error}`
+    `Ocorreu um erro não tratado durante a execução da aplicação. A aplicação será finalizada. ${error?.message ?? error}`,
+    { error }
   )
 }
