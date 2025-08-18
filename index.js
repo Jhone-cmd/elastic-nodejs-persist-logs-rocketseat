@@ -9,7 +9,7 @@ const __dirname = dirname(__filename)
 
 class App {
   constructor() {
-    this.__port = process.env.PORT || 3000
+    this.__port = process.env.PORT || 3333
     this.__express = express()
     this.__coins = []
     this.__middleware()
@@ -22,8 +22,8 @@ class App {
   }
 
   async __loadData() {
-    const url = 'https://api2.binance.com/api/v3/ticker/24hr'
-    const baseCoin = 'BUSD'
+    const url = 'https://api4.binance.com/api/v3/ticker/24hr'
+    const baseCoin = 'USDT'
     console.log(`Carregando dados da API da Binance em: ${url}`, { url })
     try {
       const response = await axios.get(url)
