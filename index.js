@@ -10,13 +10,34 @@ const __dirname = dirname(__filename)
 
 class ElasticSearchLogger {
   constructor() {
+    this.__logs = []
     this.__databaseClient = this._configureDatabaseClient()
+
+    const log = {
+      message: 'primeiro dado de teste',
+      level: 'log',
+      data: 'agora',
+      timestamp: new Date(),
+    }
+    this.__logs.push(log)
+    this.__saveToDatabase(log)
   }
 
   _configureDatabaseClient() {
     return Client({
-      node: 'https://localhost:9200',
-      log: 'trace',
+      node: 'http://localhost:9200',
+    })
+  }
+
+  async _saveToDatabase(log) {
+    await this.__databaseClient.index({
+      index: 'logs',
+      body: {
+        message: log.message,
+        level: log.level,
+        data: log.data,
+        timestamp: log.timestamp,
+      },
     })
   }
 }

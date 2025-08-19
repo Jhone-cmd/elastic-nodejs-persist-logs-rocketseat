@@ -1,6 +1,6 @@
 services:
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:9.1.2
+    image: bitnami/elasticsearch:latest
     container_name: elasticsearch
     ports: 
       - 9200:9200
@@ -11,13 +11,12 @@ services:
       - elastic
   
   kibana:
-    image: docker.elastic.co/kibana/kibana:9.1.2
+    image: bitnami/kibana:latest
     container_name: kibana
     ports:
       - 5601:5601
     environment:
-      ELASTICSEARCH_URL: http://elasticsearch:9200
-      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      KIBANA_ELASTICSEARCH_URL: http://elasticsearch:9200
     networks:
       - elastic
 
