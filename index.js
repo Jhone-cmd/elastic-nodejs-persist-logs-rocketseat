@@ -8,38 +8,67 @@ import express from 'express'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-class ElasticSearchLogger {
-  constructor() {
-    this.__logs = []
-    this.__databaseClient = this._configureDatabaseClient()
+// class ElasticSearchLogger {
+//   constructor() {
+//     this.__logs = []
+//     this.__databaseClient = this._configureDatabaseClient()
 
-    const log = {
-      message: 'primeiro dado de teste',
-      level: 'log',
-      data: 'agora',
-      timestamp: new Date(),
-    }
-    this.__logs.push(log)
-    this.__saveToDatabase(log)
-  }
+//     const log = {
+//       message: 'primeiro dado de teste',
+//       level: 'log',
+//       data: 'agora',
+//       timestamp: new Date(),
+//     }
+//     this.__logs.push(log)
+//     this.__saveToDatabase(log)
+//   }
 
-  _configureDatabaseClient() {
-    return Client({
-      node: 'http://localhost:9200',
-    })
-  }
+//   _configureDatabaseClient() {
+//     return Client({
+//       node: 'http://localhost:9200',
+//     })
+//   }
 
-  async _saveToDatabase(log) {
-    await this.__databaseClient.index({
-      index: 'logs',
-      body: {
-        message: log.message,
-        level: log.level,
-        data: log.data,
-        timestamp: log.timestamp,
-      },
-    })
+//   async _saveToDatabase(log) {
+//     await this.__databaseClient.index({
+//       index: 'logs',
+//       body: {
+//         message: log.message,
+//         level: log.level,
+//         data: log.data,
+//         timestamp: log.timestamp,
+//       },
+//     })
+//   }
+// }
+
+// Cria uma nova instância do cliente
+// O endereço padrão é http://localhost:9200
+const client = new Client({
+  node: 'http://localhost:9200',
+})
+
+// A função `ping` verifica se a conexão foi bem-sucedida
+async function run() {
+  try {
+    await client.ping()
+    console.log('Conexão com o Elasticsearch bem-sucedida!')
+  } catch (error) {
+    console.error('Falha ao conectar com o Elasticsearch:', error)
   }
+}
+
+async function indexDocument() {
+  const result = await client.index({
+    index: 'meu-primeiro-indice', // Nome do índice
+    id: '1', // ID opcional do documento
+    document: {
+      nome: 'João Silva',
+      idade: 25,
+      cidade: 'São Paulo',
+    },
+  })
+  console.log('Documento indexado:', result)
 }
 
 class App {
@@ -236,17 +265,19 @@ class App {
   }
 }
 
-try {
-  new ElasticSearchLogger()
-} catch (error) {
-  console.error(
-    `Ocorreu um erro ao configurar o ElasticsearchLogger. ${error?.message ?? error}`
-  )
-}
+// try {
+//   new ElasticSearchLogger()
+// } catch (error) {
+//   console.error(
+//     `Ocorreu um erro ao configurar o ElasticsearchLogger. ${error?.message ?? error}`
+//   )
+// }
 
 try {
   console.info('Aplicação iniciada.')
   new App().start()
+  run()
+  indexDocument()
 } catch (error) {
   console.error(
     `Ocorreu um erro não tratado durante a execução da aplicação. A aplicação será finalizada. ${error?.message ?? error}`,
