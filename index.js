@@ -1,11 +1,25 @@
 import path, { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { Client } from '@elastic/elasticsearch'
 import axios from 'axios'
 import express from 'express'
 
 // Get __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
+
+class ElasticSearchLogger {
+  constructor() {
+    this.__databaseClient = this._configureDatabaseClient()
+  }
+
+  _configureDatabaseClient() {
+    return Client({
+      node: 'https://localhost:9200',
+      log: 'trace',
+    })
+  }
+}
 
 class App {
   constructor() {
@@ -199,6 +213,14 @@ class App {
       })
     })
   }
+}
+
+try {
+  new ElasticSearchLogger()
+} catch (error) {
+  console.error(
+    `Ocorreu um erro ao configurar o ElasticsearchLogger. ${error?.message ?? error}`
+  )
 }
 
 try {
