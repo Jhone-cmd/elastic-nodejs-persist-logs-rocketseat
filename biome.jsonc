@@ -14,6 +14,13 @@
       },
       "correctness": {
         "noUnusedFunctionParameters": "off"
+      },
+      "style": {
+        "useDefaultParameterLast": "off"
+      },
+
+      "nursery": {
+        "noUselessUndefined": "off"
       }
     }
   }

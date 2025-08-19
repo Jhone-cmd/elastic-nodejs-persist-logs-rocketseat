@@ -8,45 +8,88 @@ import express from 'express'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-// class ElasticSearchLogger {
-//   constructor() {
-//     this.__logs = []
-//     this.__databaseClient = this._configureDatabaseClient()
-
-//     const log = {
-//       message: 'primeiro dado de teste',
-//       level: 'log',
-//       data: 'agora',
-//       timestamp: new Date(),
-//     }
-//     this.__logs.push(log)
-//     this.__saveToDatabase(log)
-//   }
-
-//   _configureDatabaseClient() {
-//     return Client({
-//       node: 'http://localhost:9200',
-//     })
-//   }
-
-//   async _saveToDatabase(log) {
-//     await this.__databaseClient.index({
-//       index: 'logs',
-//       body: {
-//         message: log.message,
-//         level: log.level,
-//         data: log.data,
-//         timestamp: log.timestamp,
-//       },
-//     })
-//   }
-// }
-
 // Cria uma nova instância do cliente
 // O endereço padrão é http://localhost:9200
 const client = new Client({
   node: 'http://localhost:9200',
 })
+
+class ElasticSearchLogger {
+  constructor() {
+    this.__logs = []
+
+    this.__originalConsole = {
+      log: console.log,
+      info: console.info,
+      warn: console.warn,
+      error: console.error,
+      debug: console.debug,
+    }
+
+    this.__databaseClient = client
+
+    this.__isPooling = false
+  }
+
+  configure() {
+    console.log = (message, data) => this.post(message, 'log', data)
+    console.info = (message, data) => this.post(message, 'info', data)
+    console.warn = (message, data) => this.post(message, 'warn', data)
+    console.error = (message, data) => this.post(message, 'error', data)
+    console.debug = (message, data) => this.post(message, 'debug', data)
+  }
+
+  post(message, level = 'log', data = undefined) {
+    const log = {
+      message,
+      level,
+      data,
+      timestamp: new Date(),
+    }
+    this.__logs.push(log)
+    this.__pooling()
+
+    this.__originalConsole[level](
+      `[${log.timestamp.toISOString()}] ${log.level.padStart(5)}: ${message}`
+    )
+  }
+
+  async __pooling() {
+    if (this.__isPooling) {
+      return
+    }
+    this.__isPooling = true
+
+    const log = this.__logs.shift()
+    if (log) {
+      let interval = 1
+      try {
+        await this.__saveToDatabase(log)
+      } catch (error) {
+        this.__originalConsole.error(
+          `Ocorreu um erro ao enviar o log para o banco de dados. ${error?.message ?? error}`
+        )
+        interval = 30_000
+        this.__logs.unshift(log)
+      }
+      setTimeout(() => this.__pooling(), interval)
+    }
+
+    this.__isPooling = false
+  }
+
+  async __saveToDatabase(log) {
+    await client.index({
+      index: 'app-logs',
+      body: {
+        message: log.message,
+        level: log.level,
+        data: log.data,
+        timestamp: log.timestamp,
+      },
+    })
+  }
+}
 
 // A função `ping` verifica se a conexão foi bem-sucedida
 async function run() {
@@ -56,19 +99,6 @@ async function run() {
   } catch (error) {
     console.error('Falha ao conectar com o Elasticsearch:', error)
   }
-}
-
-async function indexDocument() {
-  const result = await client.index({
-    index: 'meu-primeiro-indice', // Nome do índice
-    id: '1', // ID opcional do documento
-    document: {
-      nome: 'João Silva',
-      idade: 25,
-      cidade: 'São Paulo',
-    },
-  })
-  console.log('Documento indexado:', result)
 }
 
 class App {
@@ -265,19 +295,18 @@ class App {
   }
 }
 
-// try {
-//   new ElasticSearchLogger()
-// } catch (error) {
-//   console.error(
-//     `Ocorreu um erro ao configurar o ElasticsearchLogger. ${error?.message ?? error}`
-//   )
-// }
+try {
+  new ElasticSearchLogger().configure()
+} catch (error) {
+  console.error(
+    `Ocorreu um erro ao configurar o ElasticsearchLogger. ${error?.message ?? error}`
+  )
+}
 
 try {
   console.info('Aplicação iniciada.')
   new App().start()
   run()
-  indexDocument()
 } catch (error) {
   console.error(
     `Ocorreu um erro não tratado durante a execução da aplicação. A aplicação será finalizada. ${error?.message ?? error}`,
